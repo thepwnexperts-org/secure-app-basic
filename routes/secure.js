@@ -44,6 +44,21 @@ router.post('/purchase', (req, res) => {
 router.post('/login', (req, res) => {
     const { username, password } = req.body;
 
+    // Whitelisting: Only allow alphanumeric characters and underscores in the username
+    const usernameRegex = /^[a-zA-Z0-9_]{3,20}$/;
+    // Blacklisting: Disallow dangerous characters and SQL keywords in the password
+    const passwordBlacklistRegex = /['"\\;<>()#--]|(\bmd5\b)|(\bdrop\b)|(\bselect\b)|(\binsert\b)|(\bupdate\b)|(\bdelete\b)/i;
+
+    // Whitelisting: Username validation
+    if (!usernameRegex.test(username)) {
+        return res.status(400).send('Invalid username. Only alphanumeric characters and underscores are allowed, and it must be between 3 and 20 characters long.');
+    }
+
+    // Blacklisting: Password validation
+    if (passwordBlacklistRegex.test(password)) {
+        return res.status(400).send('Invalid password. Password contains unsafe characters or keywords.');
+    }
+
     // Using prepared statements to prevent SQL Injection
     const query = `SELECT * FROM users WHERE username = ?`;
     db.query(query, [username], async (err, result) => {
@@ -61,6 +76,7 @@ router.post('/login', (req, res) => {
         }
     });
 });
+
 
 // Array of users (server-side "database" of users and roles)
 const users = [
