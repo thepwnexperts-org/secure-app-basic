@@ -6,6 +6,20 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const rateLimit = require('express-rate-limit');
 const db = require('../db');
+const dotenv = require('dotenv');
+dotenv.config();
+
+
+
+router.get('/products', (req, res) => {
+    const query = "SELECT * FROM products";
+    db.query(query, (err, results) => {
+        if (err) {
+            return res.status(500).send('Error fetching products');
+        }
+        res.json(results);
+    });
+});
 
 // Secure: Price Manipulation Prevention
 router.post('/purchase', (req, res) => {
@@ -21,7 +35,7 @@ router.post('/purchase', (req, res) => {
         const purchaseQuery = `INSERT INTO purchases (product_id, price) VALUES (?, ?)`;
         db.query(purchaseQuery, [productId, price], (err, result) => {
             if (err) return res.status(500).send('Database error');
-            res.send('Purchase completed!');
+            res.send({"message":'Purchase completed!',"data":{"price":price}});
         });
     });
 });
@@ -48,33 +62,53 @@ router.post('/login', (req, res) => {
     });
 });
 
-// Secure: Strong JWT, MFA (not shown, but assumed), and Authorization Checks
-router.post('/auth', (req, res) => {
-    const { username, password } = req.body;
+// Array of users (server-side "database" of users and roles)
+const users = [
+    { id: 1, email: 'admin@example.com', role: 'admin' },
+    { id: 2, email: 'user1@example.com',  role: 'user' },
+    { id: 3, email: 'user2@example.com',  role: 'user' }
+];
 
-    // Secure authentication with bcrypt and strong JWT
-    if (username === 'admin' && password === 'admin123') {
-        const token = jwt.sign({ username: 'admin', role: 'admin' }, process.env.JWT_SECRET, { algorithm: 'HS256', expiresIn: '1h' });
-        res.json({ token });
-    } else {
-        res.status(401).send('Invalid credentials');
+// Secure: JWT Generation without role from client side //still week due to ...
+router.post('/auth', (req, res) => {
+    const { email } = req.body;
+
+    // Find user by email in the server-side array
+    const user = users.find(u => u.email === email);
+    if (!user) {
+        return res.status(401).send('Invalid credentials');
     }
+
+    // Generate JWT with only email (role is fetched server-side later)
+    const token = jwt.sign({ email: user.email }, process.env.JWT_SECRET, { algorithm: 'HS256', expiresIn: '1h' });
+
+    res.json({ token });
 });
 
-// Secure: Authorization with Proper Role Checks
+
+
+// Secure: Authorization with Role Fetched from Server-Side using Email
 router.get('/admin', (req, res) => {
-    const token = req.headers.authorization.split(' ')[1];
+    const token = req.headers.authorization;
+
+    // Verify JWT token (without trusting the client-side role)
     jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
         if (err) return res.status(403).send('Invalid token');
 
-        // Check if user is admin
-        if (decoded.role === 'admin') {
+        // Fetch user role from the server-side array based on email (not from the token)
+        const user = users.find(u => u.email === decoded.email);
+
+        // Check if the user's role is admin
+        if (user && user.role === 'admin') {
             res.send('Welcome to the admin panel!');
         } else {
-            res.status(403).send('Access denied');
+            res.status(403).send('Access denied: You are not an admin');
         }
     });
 });
+
+
+
 
 // Secure: Rate Limiting for Login Attempts
 const loginLimiter = rateLimit({
