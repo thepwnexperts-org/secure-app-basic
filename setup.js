@@ -4,19 +4,22 @@ const bcrypt = require('bcrypt');
 
 // Function to drop users table if it exists
 const dropUsersTable = () => {
-    const query = `DROP TABLE IF EXISTS users`;
-    connection.query(query, (err, results) => {
-        if (err) {
-            console.error('Error dropping users table:', err);
-        } else {
-            console.log('Users table dropped successfully.');
-            createUsersTable();  // Recreate the table after it's dropped
-        }
+    return new Promise((resolve, reject) => {
+        const query = `DROP TABLE IF EXISTS users`;
+        connection.query(query, (err, results) => {
+            if (err) {
+                console.error('Error dropping users table:', err);
+                reject(err);
+            } else {
+                console.log('Users table dropped successfully.');
+                resolve();  // Resolve the promise to continue
+            }
+        });
     });
 };
 
 // Function to create users table
-const createUsersTable = () => {
+const createUsersTable = async () => {
     const query = `
         CREATE TABLE IF NOT EXISTS users (
             id INT AUTO_INCREMENT PRIMARY KEY,
@@ -25,13 +28,17 @@ const createUsersTable = () => {
             role ENUM('user', 'admin') NOT NULL DEFAULT 'user'  -- Add the role field
         )`;
 
-    connection.query(query, (err, results) => {
-        if (err) {
-            console.error('Error creating users table:', err);
-        } else {
-            console.log('Users table created successfully.');
-            insertSampleUsers();  // Insert sample users after table is created
-        }
+    return new Promise((resolve, reject) => {
+        connection.query(query, async (err, results) => {
+            if (err) {
+                console.error('Error creating users table:', err);
+                reject(err);
+            } else {
+                console.log('Users table created successfully.');
+                await insertSampleUsers();  // Wait for the sample users to be inserted
+                resolve();  // Resolve after insertion
+            }
+        });
     });
 };
 
@@ -48,19 +55,21 @@ const insertSampleUsers = async () => {
             ('user', '${userPassword}', 'user')
         `;
 
-        connection.query(query, (err, results) => {
-            if (err) {
-                console.error('Error inserting sample users:', err);
-            } else {
-                console.log('Sample users inserted successfully.');
-            }
+        return new Promise((resolve, reject) => {
+            connection.query(query, (err, results) => {
+                if (err) {
+                    console.error('Error inserting sample users:', err);
+                    reject(err);
+                } else {
+                    console.log('Sample users inserted successfully.');
+                    resolve();  // Resolve after insertion
+                }
+            });
         });
     } catch (err) {
         console.error('Error hashing passwords:', err);
     }
 };
-
-
 
 // Function to create products table
 const createProductsTable = () => {
@@ -72,17 +81,20 @@ const createProductsTable = () => {
             price DECIMAL(10, 2) NOT NULL
         )`;
 
-    connection.query(query, (err, results) => {
-        if (err) {
-            console.error('Error creating products table:', err);
-        } else {
-            console.log('Products table created successfully.');
-            createPurchasesTable();
-        }
+    return new Promise((resolve, reject) => {
+        connection.query(query, (err, results) => {
+            if (err) {
+                console.error('Error creating products table:', err);
+                reject(err);
+            } else {
+                console.log('Products table created successfully.');
+                createPurchasesTable().then(resolve).catch(reject);
+            }
+        });
     });
 };
 
-// Function to create products table
+// Function to create purchases table
 const createPurchasesTable = () => {
     const query = `
         CREATE TABLE IF NOT EXISTS purchases (
@@ -91,13 +103,16 @@ const createPurchasesTable = () => {
             price DECIMAL(10, 2) NOT NULL
         )`;
 
-    connection.query(query, (err, results) => {
-        if (err) {
-            console.error('Error creating products table:', err);
-        } else {
-            console.log('Purchases table created successfully.');
-            insertSampleProducts();
-        }
+    return new Promise((resolve, reject) => {
+        connection.query(query, (err, results) => {
+            if (err) {
+                console.error('Error creating purchases table:', err);
+                reject(err);
+            } else {
+                console.log('Purchases table created successfully.');
+                insertSampleProducts().then(resolve).catch(reject);
+            }
+        });
     });
 };
 
@@ -111,19 +126,19 @@ const insertSampleProducts = () => {
         ('Tablet', 'A tablet with a 10-inch display', 299.99)
     `;
 
-    connection.query(query, (err, results) => {
-        if (err) {
-            console.error('Error inserting sample products:', err);
-        } else {
-            console.log('Sample products inserted successfully.');
-            exitProcess();  // Exit after inserting sample products
-        }
+    return new Promise((resolve, reject) => {
+        connection.query(query, (err, results) => {
+            if (err) {
+                console.error('Error inserting sample products:', err);
+                reject(err);
+            } else {
+                console.log('Sample products inserted successfully.');
+                exitProcess();  // Exit after inserting sample products
+                resolve();  // Resolve after insertion
+            }
+        });
     });
 };
-
-
-
-
 
 // Function to exit the process
 const exitProcess = () => {
@@ -138,10 +153,14 @@ const exitProcess = () => {
 };
 
 // Function to run all setup tasks
-const runSetup = () => {
-    dropUsersTable();  // First drop the table
-    createProductsTable();  // Create products table after dropping users
+const runSetup = async () => {
+    await dropUsersTable();  // First drop the table
+    await createUsersTable();  // Create users table
+    await createProductsTable();  // Create products table
 };
 
 // Execute the setup script
-runSetup();
+runSetup().catch(err => {
+    console.error('Error in setup:', err);
+    exitProcess();  // Exit on error
+});
