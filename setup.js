@@ -66,6 +66,25 @@ const createProductsTable = () => {
             console.error('Error creating products table:', err);
         } else {
             console.log('Products table created successfully.');
+            createPurchasesTable();
+        }
+    });
+};
+
+// Function to create products table
+const createPurchasesTable = () => {
+    const query = `
+        CREATE TABLE IF NOT EXISTS purchases (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            product_id INT(2) NOT NULL,
+            price DECIMAL(10, 2) NOT NULL
+        )`;
+
+    connection.query(query, (err, results) => {
+        if (err) {
+            console.error('Error creating products table:', err);
+        } else {
+            console.log('Purchases table created successfully.');
             insertSampleProducts();
         }
     });
@@ -90,6 +109,9 @@ const insertSampleProducts = () => {
         }
     });
 };
+
+
+
 
 
 // Function to exit the process
