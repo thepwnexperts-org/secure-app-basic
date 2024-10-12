@@ -1,5 +1,6 @@
 // Import database connection
 const connection = require('./db');
+const bcrypt = require('bcrypt');
 
 // Function to drop users table if it exists
 const dropUsersTable = () => {
@@ -34,22 +35,32 @@ const createUsersTable = () => {
     });
 };
 
-// Function to insert sample users
-const insertSampleUsers = () => {
-    const query = `
-        INSERT INTO users (username, password, role) VALUES
-        ('admin', 'admin123', 'admin'),
-        ('user', 'user123', 'user')
-    `;
+// Function to insert sample users with bcrypt hashed passwords
+const insertSampleUsers = async () => {
+    try {
+        // Hash passwords
+        const adminPassword = await bcrypt.hash('admin123', 10);  // Hash the admin password
+        const userPassword = await bcrypt.hash('user123', 10);    // Hash the user password
 
-    connection.query(query, (err, results) => {
-        if (err) {
-            console.error('Error inserting sample users:', err);
-        } else {
-            console.log('Sample users inserted successfully.');
-        }
-    });
+        const query = `
+            INSERT INTO users (username, password, role) VALUES
+            ('admin', '${adminPassword}', 'admin'),
+            ('user', '${userPassword}', 'user')
+        `;
+
+        connection.query(query, (err, results) => {
+            if (err) {
+                console.error('Error inserting sample users:', err);
+            } else {
+                console.log('Sample users inserted successfully.');
+            }
+        });
+    } catch (err) {
+        console.error('Error hashing passwords:', err);
+    }
 };
+
+
 
 // Function to create products table
 const createProductsTable = () => {
@@ -125,7 +136,6 @@ const exitProcess = () => {
         process.exit(0);  // Exit the process
     });
 };
-
 
 // Function to run all setup tasks
 const runSetup = () => {
